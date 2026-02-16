@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import Navbar from "@/components/navbar";
+import NavbarWrapper from "@/components/navbar-wrapper";
+import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -9,14 +12,14 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Badminton Tournament Platform",
+  description: "Elevate Your Game. Dominate the Court.",
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  display: "swap",
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
+  display: "swap",
+  variable: "--font-plus-jakarta",
 });
 
 export default function RootLayout({
@@ -26,14 +29,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+      <body className={`${plusJakarta.className} antialiased bg-slate-50`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light" 
           enableSystem
           disableTransitionOnChange
         >
+          <NavbarWrapper>
+            <Navbar />
+          </NavbarWrapper>
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

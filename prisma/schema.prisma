@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+enum TournamentStatus {
+  REGISTERING
+  PENDING_CONFIRMATION
+  CONFIRMED
+  CANCELLED
+}
+
+enum BracketType {
+  MANUAL
+  AI_AUTO
+  AI_PROMPT
+}
+
+// Profile model links to Supabase Auth user
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id") // References auth.users.id
+  role      String   @default("user") // 'admin' or 'user'
+  fullName  String?  @map("full_name")
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  registrations   Registration[]
+  tournaments     Tournament[] // Relation to tournaments created by this user
+
+  @@map("profiles")
+}
+
+model Tournament {
+  id          String   @id @default(uuid())
+  
+  // 1. Basic Info
+  name        String
+  description String?  @db.Text
+  rules       String?  @db.Text
+  bannerUrl   String?  @map("banner_url")
+  location    String?
+  contactInfo String?  @map("contact_info")
+
+  // 2. Constraints
+  ageMin      Int?     @map("age_min")
+  ageMax      Int?     @map("age_max")
+  minPlayers  Int      @default(4) @map("min_players")
+  maxPlayers  Int      @default(32) @map("max_players")
+  skillLevel  String?  @map("skill_level")
+  
+  // 3. Timing & Status
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deadline    DateTime 
+  startDate   DateTime @map("start_date")
+  status      TournamentStatus @default(REGISTERING)
+
+  // 4. Bracket Config
+  bracketType      BracketType @default(MANUAL) @map("bracket_type")
+  bracketData      Json?       @map("bracket_data")
+  manualBracketUrl String?     @map("manual_bracket_url")
+
+  // Relations
+  creatorId     String   @map("creator_id")
+  creator       Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  registrations Registration[]
+  matches       Match[]
+  media         Media[]
+
+  @@map("tournaments")
+}
+
+model Registration {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  tournamentId String     @map("tournament_id")
+  status       String     @default("pending") // pending, approved, rejected
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  profile      Profile    @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tournamentId])
+  @@map("registrations")
+}
+
+model Match {
+  id           String     @id @default(uuid())
+  tournamentId String     @map("tournament_id")
+  round        Int
+  player1Id    String?    @map("player1_id") // Can be null if TBD
+  player2Id    String?    @map("player2_id") // Can be null if TBD
+  scoreP1      Int        @default(0) @map("score_p1")
+  scoreP2      Int        @default(0) @map("score_p2")
+  isLive       Boolean    @default(false) @map("is_live") // Identify the match currently being live-scored
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  @@map("matches")
+}
+
+model Media {
+  id           String     @id @default(uuid())
+  tournamentId String     @map("tournament_id")
+  bucketPath   String     @map("bucket_path")
+  type         String     @default("image") // image, video
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("media")
+}
