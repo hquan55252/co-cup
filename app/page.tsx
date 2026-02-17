@@ -6,6 +6,7 @@ import { Calendar, Users, Trophy, ArrowRight, MapPin, Ticket } from 'lucide-reac
 import { prisma } from "@/lib/prisma"
 import Image from 'next/image'
 import { TournamentStatus } from '@prisma/client'
+import { getTournamentStatusLabel } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,7 +107,7 @@ export default async function Home() {
 
         <div className="space-y-4">
             {tournaments.map((t) => (
-                <div key={t.id} className="group relative bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 hover:border-yellow-500/50 transition-all hover:bg-slate-800/50">
+                <Link href={`/tournaments/${t.id}`} key={t.id} className="group relative bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 hover:border-yellow-500/50 transition-all hover:bg-slate-800/50 cursor-pointer">
                     {/* Date Box */}
                     <div className="flex-shrink-0 w-full md:w-24 h-24 bg-slate-950 rounded-lg flex flex-col items-center justify-center border border-slate-800 group-hover:border-yellow-500 transition-colors">
                         <span className="text-3xl font-bold text-white">{new Date(t.startDate).getDate()}</span>
@@ -120,7 +121,7 @@ export default async function Home() {
                                 t.status === 'REGISTERING' ? 'text-green-400 bg-green-400/10' : 
                                 t.status === 'CONFIRMED' ? 'text-blue-400 bg-blue-400/10' : 'text-slate-400'
                             }`}>
-                                {t.status}
+                                {getTournamentStatusLabel(t.status)}
                             </Badge>
                          </div>
                         <h3 className="text-xl font-bold text-white group-hover:text-yellow-500 transition-colors">
@@ -141,14 +142,12 @@ export default async function Home() {
 
                     {/* Action Button */}
                     <div className="flex-shrink-0">
-                        <Button asChild size="lg" className="bg-white text-slate-950 hover:bg-yellow-500 font-bold rounded-full transition-all">
-                            <Link href={`/tournaments/${t.id}`}>
-                                <Ticket className="mr-2 h-4 w-4" />
-                                Chi Tiết
-                            </Link>
+                        <Button size="lg" className="bg-white text-slate-950 hover:bg-yellow-500 font-bold rounded-full transition-all">
+                            <Ticket className="mr-2 h-4 w-4" />
+                            Đăng Ký Ngay
                         </Button>
                     </div>
-                </div>
+                </Link>
             ))}
         </div>
       </section>
@@ -235,7 +234,7 @@ export default async function Home() {
                         <div className="absolute bottom-0 left-0 right-0 p-8 transform translate-y-2 group-hover:translate-y-0 transition-transform">
                              <div className="flex justify-between items-start mb-4">
                                 <div className="text-yellow-500 font-bold text-sm uppercase tracking-wider">
-                                    {t.status}
+                                    {getTournamentStatusLabel(t.status)}
                                 </div>
                                 <div className="bg-slate-900/80 backdrop-blur p-2 rounded-lg text-center min-w-[60px]">
                                     <span className="block text-xl font-bold text-white leading-none">{new Date(t.startDate).getDate()}</span>

@@ -10,10 +10,23 @@ export function TournamentFilter() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [searchValue, setSearchValue] = useState(searchParams.get('q')?.toString() || "")
-  
+
+  // Sync state with URL params (in case changed by NavbarSearch)
+  useEffect(() => {
+    const q = searchParams.get('q')?.toString() || ""
+    if (q !== searchValue) {
+      setSearchValue(q)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]) // Only trigger on URL change
+
   // Custom debounce logic
   useEffect(() => {
     const timer = setTimeout(() => {
+      const currentQ = searchParams.get('q') || ""
+      // If local state matches URL, do nothing (prevents loop)
+      if (currentQ === searchValue) return
+
       const params = new URLSearchParams(searchParams)
       if (searchValue) {
         params.set('q', searchValue)
@@ -37,25 +50,26 @@ export function TournamentFilter() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-8">
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+    <div className="flex flex-col md:flex-row gap-4 items-center">
+      <div className="relative flex-1 w-full">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
           placeholder="Tìm kiếm giải đấu..." 
-          className="pl-10 bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-yellow-500"
-          defaultValue={searchValue}
+          className="pl-11 h-12 bg-transparent border-0 text-white placeholder:text-slate-500 focus-visible:ring-0 focus-visible:bg-white/5 rounded-xl transition-colors"
+          value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
         />
       </div>
+      <div className="h-8 w-[1px] bg-white/10 hidden md:block" />
       <Select 
         defaultValue={searchParams.get('status')?.toString() || "ALL"} 
         onValueChange={handleStatusChange}
       >
-        <SelectTrigger className="w-full md:w-[200px] bg-slate-900 border-slate-800 text-white focus:ring-yellow-500">
+        <SelectTrigger className="w-full md:w-[200px] h-12 bg-transparent border-0 text-white focus:ring-0 focus:bg-white/5 rounded-xl transition-colors">
           <SelectValue placeholder="Trạng thái" />
         </SelectTrigger>
         <SelectContent className="bg-slate-900 border-slate-800 text-white">
-          <SelectItem value="ALL">Tất cả</SelectItem>
+          <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
           <SelectItem value="REGISTERING">Đang Mở Đăng Ký</SelectItem>
           <SelectItem value="ON_GOING">Đang Diễn Ra</SelectItem>
           <SelectItem value="COMPLETED">Đã Kết Thúc</SelectItem>

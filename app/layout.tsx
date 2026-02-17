@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import Navbar from "@/components/navbar";
 import NavbarWrapper from "@/components/navbar-wrapper";
+import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -40,6 +41,9 @@ export default function RootLayout({
             <Navbar />
           </NavbarWrapper>
           {children}
+          <NavbarWrapper>
+            <SiteFooter />
+          </NavbarWrapper>
           <Toaster />
         </ThemeProvider>
       </body>
