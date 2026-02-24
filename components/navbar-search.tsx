@@ -106,7 +106,7 @@ export function NavbarSearch({ className }: { className?: string }) {
                 </div>
                 
                 {/* Results Area */}
-                <CommandList className="flex-1 overflow-y-auto p-6 md:p-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] max-h-full">
+                <CommandList className="flex-1 overflow-y-auto p-6 md:p-8 max-h-full">
                     <CommandEmpty className="h-full flex flex-col items-center justify-center -mt-12">
                         {query ? (
                              <div className="flex flex-col items-center gap-4 text-slate-500 animate-in fade-in zoom-in duration-300">

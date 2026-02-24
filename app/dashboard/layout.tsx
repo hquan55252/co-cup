@@ -39,8 +39,8 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex-shrink-0">
+      {/* Sidebar - Add pt-24 so the content starts below the fixed navbar */}
+      <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex-shrink-0 flex flex-col pt-24">
         <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
                 <Avatar className="h-12 w-12 border-2 border-yellow-500">
@@ -80,7 +80,7 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 pt-24 md:pt-28">
         <div className="max-w-6xl mx-auto">
             {children}
         </div>

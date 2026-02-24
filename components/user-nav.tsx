@@ -42,7 +42,7 @@ export function UserNav({ user }: { user: any }) {
   const initial = displayName[0]?.toUpperCase();
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-white/20 hover:bg-white/10 p-0 overflow-hidden">
             <Avatar className="h-full w-full">

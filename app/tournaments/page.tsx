@@ -100,7 +100,7 @@ export default async function TournamentsPage({ searchParams }: TournamentsPageP
                              <Badge className={`border-none shadow-sm backdrop-blur-md px-2.5 py-0.5 text-xs font-semibold ${
                                 t.status === 'REGISTERING' ? 'bg-green-500 text-slate-950' : 
                                 t.status === 'CONFIRMED' ? 'bg-blue-500 text-white' : 
-                                t.status === 'COMPLETED' ? 'bg-slate-800 text-slate-400' : 'bg-slate-700 text-white'
+                                t.status === 'CANCELLED' ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'
                             }`}>
                                 {getTournamentStatusLabel(t.status)}
                             </Badge>
