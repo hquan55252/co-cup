@@ -22,12 +22,20 @@ enum BracketType {
   AI_PROMPT
 }
 
+enum MatchStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+}
+
 // Profile model links to Supabase Auth user
 model Profile {
   id        String   @id @default(uuid())
   userId    String   @unique @map("user_id") // References auth.users.id
   role      String   @default("user") // 'admin' or 'user'
   fullName  String?  @map("full_name")
+  email     String?
   avatarUrl String?  @map("avatar_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -95,19 +103,29 @@ model Registration {
 }
 
 model Match {
-  id           String     @id @default(uuid())
-  tournamentId String     @map("tournament_id")
+  id           String      @id @default(uuid())
+  tournamentId String      @map("tournament_id")
   round        Int
-  player1Id    String?    @map("player1_id") // Can be null if TBD
-  player2Id    String?    @map("player2_id") // Can be null if TBD
-  scoreP1      Int        @default(0) @map("score_p1")
-  scoreP2      Int        @default(0) @map("score_p2")
-  isLive       Boolean    @default(false) @map("is_live") // Identify the match currently being live-scored
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  matchIndex   Int         @default(0) @map("match_index")
+  player1Id    String?     @map("player1_id")
+  player2Id    String?     @map("player2_id")
+  scoreP1      Int         @default(0) @map("score_p1")
+  scoreP2      Int         @default(0) @map("score_p2")
+  isLive       Boolean     @default(false) @map("is_live")
+  winnerId     String?     @map("winner_id")
+  status       MatchStatus @default(PENDING)
 
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  
+  // Bracket linkage
+  nextMatchId   String?    @map("next_match_id")
+  nextMatch     Match?     @relation("NextMatch", fields: [nextMatchId], references: [id])
+  nextMatchSlot String?    @map("next_match_slot") // 'P1' or 'P2'
+  previousMatches Match[]  @relation("NextMatch")
+
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
   @@map("matches")
 }
 

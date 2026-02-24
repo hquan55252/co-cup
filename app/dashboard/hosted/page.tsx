@@ -5,6 +5,8 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
+export const dynamic = 'force-dynamic'
+
 export default async function HostedTournamentsPage() {
   const tournaments = await getHostedTournaments();
 

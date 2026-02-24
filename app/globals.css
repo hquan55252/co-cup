@@ -77,3 +77,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Fix for Layout Shift causing 'jump' and lost scrollbar
+   Root cause: Radix UI removes scrollbar and adds padding, causing layout width changes.
+   Solution: Reserve scrollbar space always and prevent Radix interference.
+*/
+html {
+  scrollbar-gutter: stable;
+}
+
+body[data-scroll-locked] {
+  overflow: visible !important;
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+}

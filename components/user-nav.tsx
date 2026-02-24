@@ -28,10 +28,10 @@ export function UserNav({ user }: { user: any }) {
     return (
       <div className="flex gap-2">
          <Link href="/login">
-            <Button variant="ghost" className="text-white hover:text-white hover:bg-white/10">Đăng Nhập</Button>
+            <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-white/10 font-medium">Đăng Nhập</Button>
          </Link>
-         <Link href="/login?tab=register">
-            <Button className="bg-lime-500 hover:bg-lime-600 text-slate-900 font-bold">Đăng Ký</Button>
+         <Link href="/auth/sign-up">
+            <Button className="bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold shadow-lg shadow-yellow-500/20">Đăng Ký</Button>
          </Link>
       </div>
     )

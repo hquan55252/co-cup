@@ -7,33 +7,66 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { TournamentStatus, BracketType } from '@prisma/client'
 
+// Helper: parse datetime-local string safely (handles "2026-02-21T08:00" without seconds)
+function parseDateSafe(dateStr: string): Date | null {
+  if (!dateStr) return null
+  // Normalize: append :00 if missing seconds
+  const normalized = dateStr.length === 16 ? `${dateStr}:00` : dateStr
+  const d = new Date(normalized)
+  return isNaN(d.getTime()) ? null : d
+}
+
 // Define Schema matching the form
 const TournamentSchema = z.object({
   name: z.string().min(3, "Tên giải ít nhất 3 ký tự"),
-  description: z.string().optional(),
-  rules: z.string().optional(),
-  bannerUrl: z.string().optional(),
-  location: z.string().optional(),
-  contactInfo: z.string().optional(),
-  startDate: z.string().refine((date) => new Date(date) > new Date(), {
-    message: "Ngày bắt đầu phải ở tương lai",
-  }),
-  deadline: z.string(), 
+  description: z.string().nullish().transform(v => v ?? undefined),
+  rules: z.string().nullish().transform(v => v ?? undefined),
+  bannerUrl: z.string().nullish().transform(v => v ?? undefined),
+  location: z.string().nullish().transform(v => v ?? undefined),
+  contactInfo: z.string().nullish().transform(v => v ?? undefined),
+  startDate: z.string()
+    .min(1, "Ngày khai mạc là bắt buộc.")
+    .refine((date) => {
+      const selected = parseDateSafe(date)
+      if (!selected) return false
+      const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000) // now + 24h
+      return selected > minDate
+    }, {
+      message: "Ngày khai mạc phải sau thời điểm hiện tại ít nhất 24 giờ.",
+    }),
+  deadline: z.string()
+    .min(1, "Hạn đăng ký là bắt buộc.")
+    .refine((date) => {
+      const d = parseDateSafe(date)
+      return d !== null && d > new Date()
+    }, {
+      message: "Hạn đăng ký phải là ngày trong tương lai.",
+    }),
   minPlayers: z.coerce.number().min(2),
   maxPlayers: z.coerce.number().min(2),
   bracketType: z.nativeEnum(BracketType),
   status: z.nativeEnum(TournamentStatus).default(TournamentStatus.REGISTERING),
-}).refine((data) => {
-    return new Date(data.deadline) < new Date(data.startDate)
-}, {
-    message: "Hạn đăng ký phải trước ngày bắt đầu",
-    path: ["deadline"]
-}).refine((data) => {
-    return data.maxPlayers >= data.minPlayers
-}, {
-    message: "Số lượng tối đa phải lớn hơn hoặc bằng tối thiểu",
-    path: ["maxPlayers"]
+  skillLevel: z.string().optional(),
 })
+// Cross-field: deadline must be at least 24h before startDate
+.refine((data) => {
+  const start = parseDateSafe(data.startDate)
+  const dead = parseDateSafe(data.deadline)
+  if (!start || !dead) return false
+  const buffer = 24 * 60 * 60 * 1000 // 24h in ms
+  return dead.getTime() + buffer <= start.getTime()
+}, {
+  message: "Hạn đăng ký phải kết thúc trước ngày khai mạc ít nhất 24 giờ để ban tổ chức chuẩn bị.",
+  path: ["deadline"],
+})
+// Cross-field: maxPlayers >= minPlayers
+.refine((data) => {
+  return data.maxPlayers >= data.minPlayers
+}, {
+  message: "Số lượng tối đa phải lớn hơn hoặc bằng tối thiểu",
+  path: ["maxPlayers"],
+})
+
 
 export type CreateTournamentState = {
   errors?: {
@@ -53,6 +86,23 @@ export async function createTournament(prevState: CreateTournamentState, formDat
     }
   }
 
+  // Sync Profile on creation attempt
+  const profile = await prisma.profile.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      email: user.email,
+      fullName: user.user_metadata?.full_name || user.email?.split('@')[0],
+      avatarUrl: user.user_metadata?.avatar_url,
+      role: 'user'
+    },
+    update: {
+      email: user.email,
+      fullName: user.user_metadata?.full_name || user.email?.split('@')[0],
+      avatarUrl: user.user_metadata?.avatar_url
+    }
+  })
+
   // Parse fields
   const rawData = {
     name: formData.get('name'),
@@ -66,6 +116,7 @@ export async function createTournament(prevState: CreateTournamentState, formDat
     minPlayers: formData.get('minPlayers'),
     maxPlayers: formData.get('maxPlayers'),
     bracketType: formData.get('bracketType'),
+    skillLevel: formData.get('skillLevel'),
     status: TournamentStatus.REGISTERING
   }
 
@@ -96,8 +147,9 @@ export async function createTournament(prevState: CreateTournamentState, formDat
         minPlayers: data.minPlayers,
         maxPlayers: data.maxPlayers,
         bracketType: data.bracketType,
+        skillLevel: data.skillLevel,
         status: data.status,
-        creatorId: user.id
+        creatorId: profile.id // Use resolved profile.id
       }
     })
     tournamentId = tournament.id
@@ -122,6 +174,23 @@ export async function registerForTournament(tournamentId: string) {
       message: 'Bạn cần đăng nhập để đăng ký tham gia.',
     }
   }
+
+  // Sync Profile before registration to ensure foreign key constraint
+  await prisma.profile.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      email: user.email,
+      fullName: user.user_metadata?.full_name || user.email?.split('@')[0],
+      avatarUrl: user.user_metadata?.avatar_url,
+      role: 'user'
+    },
+    update: {
+      email: user.email,
+      fullName: user.user_metadata?.full_name || user.email?.split('@')[0],
+      avatarUrl: user.user_metadata?.avatar_url
+    }
+  })
 
   // Check tournament status and capacity
   const tournament = await prisma.tournament.findUnique({
@@ -187,6 +256,15 @@ export async function manageRegistration(registrationId: string, action: 'approv
     throw new Error("Unauthorized")
   }
 
+  // Resolve Profile to check ownership
+  const profile = await prisma.profile.findUnique({
+      where: { userId: user.id }
+  })
+  
+  if (!profile) {
+      throw new Error("Unauthorized")
+  }
+
   // 1. Get registration & tournament info to verify ownership
   const registration = await prisma.registration.findUnique({
     where: { id: registrationId },
@@ -197,8 +275,8 @@ export async function manageRegistration(registrationId: string, action: 'approv
     return { success: false, message: 'Không tìm thấy đơn đăng ký.' }
   }
 
-  // 2. SECURITY CHECK: Only Creator can manage
-  if (registration.tournament.creatorId !== user.id) {
+  // 2. SECURITY CHECK: Only Creator can manage (check profile.id)
+  if (registration.tournament.creatorId !== profile.id) {
     throw new Error("Unauthorized: Bạn không phải chủ giải.")
   }
 
@@ -237,8 +315,15 @@ export async function getHostedTournaments() {
   if (!user) return []
 
   try {
+    // Resolve profile first to be safe
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id }
+    })
+
+    if (!profile) return []
+
     const tournaments = await prisma.tournament.findMany({
-      where: { creatorId: user.id },
+      where: { creatorId: profile.id }, // Use resolved profile.id
       include: {
         _count: {
           select: { registrations: true }

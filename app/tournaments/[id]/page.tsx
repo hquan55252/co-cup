@@ -3,15 +3,18 @@ import { prisma } from "@/lib/prisma"
 import { getTournamentStatusLabel } from "@/lib/utils"
 import { createClient } from "@/utils/supabase/server"
 import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, MapPin, Users, Trophy, Shield, Share2, Settings, ArrowRight, User, Clock, CheckCircle2 } from "lucide-react"
+import { Calendar, MapPin, Users, Trophy, Shield, Share2, Settings, Clock, CheckCircle2, AlarmClock } from "lucide-react"
 import RegisterButton from "./register-button"
 import ParticipantManager from "./participant-manager"
 import PublicParticipantList from "./public-participant-list"
+import BracketView from "@/components/bracket-view"
+import { GenerateBracketButton } from "@/components/bracket/generate-bracket-button"
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +51,7 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  const isCreator = user?.id === tournament.creatorId
+  const isCreator = user?.id === tournament.creator.userId
   const isRegistering = tournament.status === 'REGISTERING'
 
   let isRegistered = false
@@ -65,7 +68,12 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
 
   // Determine if tournament is full (based on APPROVED participants)
   const approvedCount = tournament.registrations.filter(r => r.status === 'approved').length
+  const pendingCount = tournament.registrations.filter(r => r.status === 'pending').length
   const isFull = approvedCount >= tournament.maxPlayers
+
+  // Check if bracket already exists
+  const matchCount = await prisma.match.count({ where: { tournamentId: id } })
+  const hasBracket = matchCount > 0
 
   // Format Dates
   const startDate = new Date(tournament.startDate).toLocaleDateString('vi-VN', {
@@ -106,7 +114,7 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                             {tournament.status === 'REGISTERING' ? 'Đang Mở Đăng Ký' : getTournamentStatusLabel(tournament.status)}
                         </Badge>
                         <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 bg-yellow-500/10 px-3 py-1.5 rounded-full">
-                            Mùa Giải 2024
+                            Mùa Giải {new Date(tournament.startDate).getFullYear()}
                         </Badge>
                     </div>
 
@@ -115,9 +123,11 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                         <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight drop-shadow-2xl leading-none">
                             {tournament.name}
                         </h1>
-                        <p className="text-lg md:text-xl text-slate-300 max-w-2xl line-clamp-2">
-                            {tournament.description?.slice(0, 150) || "Giải đấu cầu lông chuyên nghiệp dành cho mọi đối tượng..."}
-                        </p>
+                        {tournament.description && (
+                            <p className="text-lg md:text-xl text-slate-300 max-w-2xl line-clamp-2">
+                                {tournament.description}
+                            </p>
+                        )}
                     </div>
                     
                     {/* Stats Row */}
@@ -130,9 +140,19 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                              <MapPin className="w-5 h-5 text-yellow-500" />
                              <span className="text-slate-200 font-medium">{tournament.location || "Online / TBD"}</span>
                         </div>
+                        {tournament.skillLevel && (
+                             <div className="flex items-center gap-3 bg-slate-900/40 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-white/10 hover:bg-slate-900/60 transition-colors">
+                                 <Shield className="w-5 h-5 text-yellow-500" />
+                                 <span className="text-slate-200 font-medium">{tournament.skillLevel}</span>
+                            </div>
+                        )}
                          <div className="flex items-center gap-3 bg-slate-900/40 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-white/10 hover:bg-slate-900/60 transition-colors">
                              <Users className="w-5 h-5 text-yellow-500" />
                              <span className="text-slate-200 font-medium">{approvedCount} / {tournament.maxPlayers} Vận Động Viên</span>
+                        </div>
+                        <div className="flex items-center gap-3 bg-red-500/10 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition-colors">
+                             <AlarmClock className="w-5 h-5 text-red-400" />
+                             <span className="text-slate-200 font-medium">Hạn đăng ký: {deadline}</span>
                         </div>
                     </div>
                 </div>
@@ -140,9 +160,11 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto min-w-[200px] items-stretch sm:items-center sm:justify-end">
                     {isCreator ? (
-                        <Button size="lg" className="w-full h-14 bg-yellow-500 text-slate-950 hover:bg-yellow-400 font-bold text-lg shadow-lg shadow-yellow-500/20">
-                            <Settings className="mr-2 w-5 h-5" />
-                            Quản Lý Giải
+                        <Button size="lg" className="w-full h-14 bg-yellow-500 text-slate-950 hover:bg-yellow-400 font-bold text-lg shadow-lg shadow-yellow-500/20" asChild>
+                            <Link href={`/tournaments/${tournament.id}/manage`}>
+                                <Settings className="mr-2 w-5 h-5" />
+                                Quản Lý Giải
+                            </Link>
                         </Button>
                     ) : (
                         isRegistering && (
@@ -181,7 +203,7 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                             Sơ Đồ & Lịch Đấu
                         </TabsTrigger>
                         <TabsTrigger value="teams" className="flex-1 data-[state=active]:bg-yellow-500 data-[state=active]:text-slate-950 text-slate-400 py-3 rounded-xl font-bold transition-all">
-                             Vận Động Viên ({approvedCount})
+                             Vận Động Viên ({approvedCount}{isCreator && pendingCount > 0 ? ` | ${pendingCount} chờ` : ''})
                         </TabsTrigger>
                     </TabsList>
 
@@ -206,25 +228,74 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                                     <div className="p-2 bg-yellow-500/10 rounded-lg">
                                         <Shield className="w-5 h-5" />
                                     </div>
-                                    Điều Lệ & Quy Định
+                                    Điều Lệ &amp; Quy Định
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 text-slate-300 leading-relaxed whitespace-pre-wrap text-base">
-                                {tournament.rules || "BTC chưa cập nhật điều lệ chi tiết."}
+                            <CardContent className="p-6">
+                                {tournament.rules ? (
+                                    <ul className="space-y-3">
+                                        {tournament.rules.split('\n').filter(line => line.trim()).map((rule, i) => (
+                                            <li key={i} className="flex items-start gap-3 text-slate-300">
+                                                <span className="mt-1 flex-shrink-0 w-5 h-5 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-500 text-xs font-bold">
+                                                    {i + 1}
+                                                </span>
+                                                <span className="leading-relaxed">{rule.replace(/^[-•]\s*/, '')}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-slate-500 italic">BTC chưa cập nhật điều lệ chi tiết.</p>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
 
                     <TabsContent value="bracket" className="animate-in fade-in-50 duration-500 slide-in-from-bottom-2">
-                        <Card className="bg-slate-900 border-slate-800 shadow-xl min-h-[400px] flex items-center justify-center relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-5"></div>
-                            <div className="text-center text-slate-500 relative z-10 p-8">
-                                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500">
-                                     <Trophy className="w-10 h-10 text-slate-600" />
+                        <Card className="bg-slate-900 border-slate-800 shadow-xl overflow-hidden">
+                            <CardHeader className="border-b border-slate-800/50 pb-4">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-3 text-xl text-yellow-500">
+                                        <div className="p-2 bg-yellow-500/10 rounded-lg">
+                                            <Trophy className="w-5 h-5" />
+                                        </div>
+                                        Sơ Đồ Thi Đấu
+                                    </CardTitle>
+                                    {isCreator && hasBracket && (
+                                        <GenerateBracketButton
+                                            tournamentId={tournament.id}
+                                            approvedCount={approvedCount}
+                                            hasBracket={hasBracket}
+                                        />
+                                    )}
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-300 mb-2">Chưa Công Bố Sơ Đồ</h3>
-                                <p className="max-w-md mx-auto">Sơ đồ thi đấu sẽ được Ban Tổ Chức công bố sau khi kết thúc thời gian đăng ký. Vui lòng quay lại sau.</p>
-                            </div>
+                            </CardHeader>
+                            <CardContent className="p-4 md:p-6">
+                                {hasBracket ? (
+                                    <BracketView
+                                        tournamentId={tournament.id}
+                                        isOrganizer={isCreator}
+                                        tournamentName={tournament.name}
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-16">
+                                        {isCreator ? (
+                                            <GenerateBracketButton
+                                                tournamentId={tournament.id}
+                                                approvedCount={approvedCount}
+                                                hasBracket={hasBracket}
+                                            />
+                                        ) : (
+                                            <div className="text-center text-slate-500 space-y-4">
+                                                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto">
+                                                    <Trophy className="w-10 h-10 text-slate-600" />
+                                                </div>
+                                                <h3 className="text-xl font-bold text-slate-300">Chưa Công Bố Sơ Đồ</h3>
+                                                <p className="max-w-md mx-auto">Sơ đồ thi đấu sẽ được Ban Tổ Chức công bố sau khi kết thúc thời gian đăng ký.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
                         </Card>
                     </TabsContent>
 
@@ -249,14 +320,14 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
                             <Avatar className="w-20 h-20 border-4 border-slate-900 shadow-lg">
                             <AvatarImage src={tournament.creator.avatarUrl || ''} />
                                 <AvatarFallback className="bg-slate-800 text-yellow-500 text-2xl font-bold">
-                                    {tournament.creator.fullName?.[0] || 'A'}
+                                    {tournament.creator.fullName?.[0] || tournament.creator.email?.[0]?.toUpperCase() || 'U'}
                                 </AvatarFallback>
                             </Avatar>
                         </div>
                     </div>
                     <CardContent className="pt-16 pb-8 px-6 text-center">
                         <h3 className="text-xl font-bold text-white mb-1">
-                            {tournament.creator.fullName || "Admin"}
+                            {tournament.creator.fullName || tournament.creator.email?.split('@')[0] || "Nhà Tổ Chức"}
                         </h3>
                         <p className="text-yellow-500 font-medium mb-6">Nhà Tổ Chức</p>
                         
